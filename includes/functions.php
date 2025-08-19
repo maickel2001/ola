@@ -103,6 +103,16 @@ function getAllProducts($page = 1, $perPage = ITEMS_PER_PAGE, $filters = []) {
     ];
 }
 
+function getProductById($productId) {
+    $db = getDB();
+    return $db->fetch("
+        SELECT p.*, c.name as category_name 
+        FROM products p 
+        LEFT JOIN categories c ON p.category_id = c.id 
+        WHERE p.id = ? AND p.is_active = 1
+    ", [$productId]);
+}
+
 function getProductBySlug($slug) {
     $db = getDB();
     return $db->fetch("
@@ -417,6 +427,22 @@ function addProductReview($data) {
     }
 }
 
+function getProductAverageRating($productId) {
+    $db = getDB();
+    $result = $db->fetch("
+        SELECT AVG(rating) as avg_rating 
+        FROM reviews 
+        WHERE product_id = ? AND is_approved = 1
+    ", [$productId]);
+    
+    return $result ? round($result['avg_rating'], 1) : 0;
+}
+
+function getProductReviewCount($productId) {
+    $db = getDB();
+    return $db->count('reviews', 'product_id = ? AND is_approved = 1', [$productId]);
+}
+
 /**
  * Utility Functions
  */
@@ -525,5 +551,38 @@ function validateCSRF() {
         http_response_code(403);
         die('CSRF token validation failed');
     }
+}
+
+
+
+
+
+/**
+ * Utility Functions
+ */
+function getBaseUrl() {
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
+    $host = $_SERVER['HTTP_HOST'];
+    $scriptName = $_SERVER['SCRIPT_NAME'];
+    $pathInfo = pathinfo($scriptName);
+    $basePath = $pathInfo['dirname'];
+    
+    // If we're in a subdirectory, include it in the base URL
+    if ($basePath !== '/') {
+        return $protocol . $host . $basePath . '/';
+    }
+    
+    return $protocol . $host . '/';
+}
+
+
+
+function getWishlistCount() {
+    if (!is_logged_in()) {
+        return 0;
+    }
+    
+    $db = getDB();
+    return $db->count('wishlist', 'user_id = ?', [$_SESSION['user_id']]);
 }
 ?>
